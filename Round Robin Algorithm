@@ -1,0 +1,110 @@
+#!/bin/bash
+filename=$1
+# $1 this means the first parameter of the argument
+echo  "This is a regular file"
+
+overallNutRemaining=0
+#This indicates the overall Nut value that we start off with which is 0
+
+processCount=0
+processLabelsArray=()
+arrivalsArray=()
+NutArray=()
+processStateArray=()
+queue=()
+WaitingQueue=()
+#Declaring the variables and placing them into an array.
+
+echo "${filename##*/} data file entered" | tee -a "${filename%.*}_out.txt"
+
+while read -ra tempLineArray || [ -n "$tempLineArray" ]
+do
+    processLabelsArray+=(${tempLineArray[0]})
+    arrivalsArray+=(${tempLineArray[1]})
+    NutArray+=(${tempLineArray[2]})
+    processStateArray+=("-")
+    WaitingQueue+=(false)
+((overallNutRemaining+=${tempLineArray[2]}))
+    echo "${tempLineArray[0]} ${tempLineArray[1]} ${tempLineArray[2]}" | tee -a "${filename%.*}_out.txt"
+done < $filename
+#what goes into the Queue starts here.^
+
+echo -n " " | tee -a "${filename%.*}_out.txt"
+for item in "${processLabelsArray[@]}"
+do
+    echo -ne "\t$item" | tee -a "${filename%.*}_out.txt"
+done
+echo | tee -a "${filename%.*}_out.txt"
+
+totalAmountOfProcesses=${#processLabelsArray[@]}
+# this determines the status for all the processes.
+
+
+while true
+do
+    echo -n "$processCount" | tee -a "${filename%.*}_out.txt"
+    for (( index=0 ; index<$totalAmountOfProcesses ; index++ ))
+    do
+        if [ "${arrivalsArray[$index]}" -le "$processCount" ] && [ ${NutArray[$index]} -gt 0 ]
+        then
+            if [ ${WaitingQueue[$index]} = false ]
+            then
+            
+                queue+=($index)
+                WaitingQueue[$index]=true
+            fi
+            processStateArray[$index]="W"
+        fi
+        if [ ${NutArray[$index]} -eq 0 ]
+        then
+            processStateArray[$index]="F"
+        fi
+    done
+#this will determine the end of all processes status here by using loops to check the conditions.
+
+if [ $overallNutRemaining -eq 0 ]
+    then
+        for (( index=0 ; index<$totalAmountOfProcesses ; index++ ))
+        do
+            echo -ne "\t${processStateArray[$index]}" | tee -a "${filename%.*}_out.txt"
+        done
+        echo | tee -a "${filename%.*}_out.txt"
+        break
+    fi
+
+    queueAmount=${#queue[@]}
+#This will set up the next process in the queue.
+if [ $overallNutRemaining -eq 0 ]
+    then
+        for (( index=0 ; index<$totalAmountOfProcesses ; index++ ))
+        do
+            echo -ne "\t${processStateArray[$index]}" | tee -a "${filename%.*}_out.txt"
+        done
+        echo | tee -a "${filename%.*}_out.txt"
+        break
+    fi
+
+    queueAmount=${#queue[@]}
+#This will set up the next process in the queue.
+
+    if [ $queueAmount -gt 0 ]
+    then
+        processStateArray[${queue[0]}]="R"
+        NutArray[${queue[0]}]=$((${NutArray[${queue[0]}]} - 1))
+        if [ ${NutArray[${queue[0]}]} -gt 0 ]
+        then
+            queue+=(${queue[0]})
+        fi
+        queue=("${queue[@]:1}")
+        ((overallNutRemaining--))
+ fi
+
+    for (( index=0 ; index<$totalAmountOfProcesses ; index++ ))
+    do
+        echo -ne "\t${processStateArray[$index]}" | tee -a "${filename%.*}_out.txt"
+    done
+    echo | tee -a "${filename%.*}_out.txt"
+
+    ((processCount++))
+done
+#this which check the conditions of the queue if it's does not meet the conditon the output will print R .
